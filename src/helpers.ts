@@ -20,7 +20,7 @@ function chordTransposeDistance(capo, transposeKey, songKey) {
   return transpose;
 }
 
-export function renderChord(chord, lineKey, transposeKey, song) {
+export function renderChord(chord, lineKey, transposeKey, song, lyrics?) {
   let chordObj = Chord.parse(chord);
   const { capo, key: songKey } = song;
 
@@ -38,7 +38,13 @@ export function renderChord(chord, lineKey, transposeKey, song) {
     chordObj = chordObj.normalize(lineKey);
   }
 
-  return chordObj.toString();
+  let chordString = chordObj.toString();
+
+  if (lyrics === ' ') {
+    chordString += ' ';
+  }
+
+  return chordString;
 }
 
 /**

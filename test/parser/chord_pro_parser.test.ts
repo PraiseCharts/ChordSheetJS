@@ -57,6 +57,35 @@ Let it [Am]be, let it [C/A][C/G#]be, let it [F]be, let it [C]be
     expect(lines5Pairs[8]).toBeChordLyricsPair('C', '');
   });
 
+  it('handles trailing chords correctly', () => {
+    const chordSheet = `
+{title: Honey In The Rock}
+{c:Verse 1}
+[D] Praying[Dsus] for a miracle,[D] thirsty[Dsus]
+
+`.substring(1);
+
+    const song = new ChordProParser().parse(chordSheet);
+    const { lines } = song;
+
+    expect(lines.length).toEqual(5);
+
+    expect(lines[0].items.length).toEqual(1);
+    expect(lines[0].items[0]).toBeTag('title', 'Honey In The Rock');
+
+    expect(lines[1].items.length).toEqual(1);
+    expect(lines[1].items[0]).toBeTag('comment', 'Verse 1');
+
+    const line2Pairs = lines[2].items;
+    expect(line2Pairs[0]).toBeChordLyricsPair('D', ' ');
+    expect(line2Pairs[1]).toBeChordLyricsPair('', 'Praying');
+    expect(line2Pairs[2]).toBeChordLyricsPair('Dsus', ' ');
+    expect(line2Pairs[3]).toBeChordLyricsPair('', 'for a miracle,');
+    expect(line2Pairs[4]).toBeChordLyricsPair('D', ' ');
+    expect(line2Pairs[5]).toBeChordLyricsPair('', 'thirsty');
+    expect(line2Pairs[6]).toBeChordLyricsPair('Dsus', '');
+  });
+
   it('correctly parses a directive with special characters', () => {
     const chordSheet = '{comment: Intro [Dm7] [F6/B] [Cmaj7] }';
     const song = new ChordProParser().parse(chordSheet);
