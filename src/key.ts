@@ -33,6 +33,7 @@ interface KeyProperties {
   modifier?: Modifier | null;
   referenceKeyGrade?: number | null;
   preferredModifier?: Modifier | null,
+  minorScale?: boolean,
 }
 
 const KEY_TYPES: ChordType[] = [SYMBOL, SOLFEGE, NUMERIC, NUMERAL];
@@ -74,6 +75,8 @@ class Key implements KeyProperties {
   originalKeyString: string | null = null;
 
   preferredModifier: Modifier | null;
+
+  minorScale: boolean = false;
 
   static parse(keyString: string | null): null | Key {
     if (!keyString) return null;
@@ -256,6 +259,7 @@ class Key implements KeyProperties {
       referenceKeyGrade = null,
       originalKeyString = null,
       preferredModifier = null,
+      minorScale = false,
     }: {
       grade?: number | null,
       number?: number | null,
@@ -265,6 +269,7 @@ class Key implements KeyProperties {
       referenceKeyGrade?: number | null,
       originalKeyString?: string | null,
       preferredModifier: Modifier | null,
+      minorScale?: boolean,
     },
   ) {
     this.grade = grade;
@@ -275,6 +280,7 @@ class Key implements KeyProperties {
     this.preferredModifier = preferredModifier;
     this.referenceKeyGrade = referenceKeyGrade;
     this.originalKeyString = originalKeyString;
+    this.minorScale = minorScale;
   }
 
   distanceTo(otherKey: Key | string): number {
@@ -353,6 +359,7 @@ class Key implements KeyProperties {
       type: SYMBOL,
       modifier: null,
       preferredModifier: modifier || keyObj.modifier,
+      minorScale: keyObj?.minor || false,
     });
 
     const normalized = chordSymbol.normalizeEnharmonics(keyObj);
@@ -446,6 +453,7 @@ class Key implements KeyProperties {
       referenceKeyGrade: 0,
       modifier: null,
       preferredModifier: referenceKey.modifier,
+      minorScale: referenceKey?.minor || false,
     });
   }
 
@@ -470,6 +478,7 @@ class Key implements KeyProperties {
       referenceKeyGrade: 0,
       modifier: null,
       preferredModifier: referenceKey.modifier || this.modifier,
+      minorScale: referenceKey?.minor || false,
     });
   }
 
@@ -501,7 +510,7 @@ class Key implements KeyProperties {
       modifier: this.modifier,
       preferredModifier: this.preferredModifier,
       grade: this.effectiveGrade,
-      minor: this.minor,
+      minor: this.minorScale,
     });
   }
 
@@ -668,6 +677,7 @@ class Key implements KeyProperties {
       referenceKeyGrade: this.referenceKeyGrade,
       originalKeyString: this.originalKeyString,
       preferredModifier: this.preferredModifier,
+      minorScale: this.minorScale,
       ...(overwrite ? attributes : {}),
     });
   }
