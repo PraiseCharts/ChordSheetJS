@@ -77,18 +77,21 @@ export interface SectionTypeConfig {
   }[];
 }
 
+export interface ColumnConfig {
+  columnCount: number;
+  columnSpacing: number;
+}
+
 export interface SectionsConfig {
   global: {
-    columnCount: number;
     columnWidth: number;
-    columnSpacing: number;
     spacingBottom?: number;
     spacingAfter?: number;
     chordLyricSpacing: number;
     linePadding: number;
     paragraphSpacing?: number;
     chordSpacing: number;
-  };
+  } & ColumnConfig;
   base: SectionTypeConfig;
   types?: Record<ParagraphType, SectionTypeConfig | undefined>;
 }

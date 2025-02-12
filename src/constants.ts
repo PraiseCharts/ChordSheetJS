@@ -102,9 +102,12 @@ export const MAJOR = 'M';
 
 export type Mode = 'M' | 'm';
 
-type FretNumber = number;
-type OpenFret = '0';
-type NonSoundingString = '-1' | 'N' | 'x';
+export type FretNumber = number;
+export type OpenFret = 0;
+export type NonSoundingString = '-1' | 'N' | 'x';
+
+export const openFret = 0 as OpenFret;
+export const nonSoundingString = ['N', '-1', 'x'] as NonSoundingString[];
 
 export type Fret = FretNumber | OpenFret | NonSoundingString;
 

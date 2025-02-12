@@ -1,5 +1,22 @@
+import { Blob } from 'buffer';
 import JsPDF, { jsPDFOptions } from 'jspdf';
+import { Performance } from 'perf_hooks';
+
+import ChordDefinition, { isNonSoundingString, isOpenFret } from '../chord_definition/chord_definition';
+import ChordDiagram, { StringMarker, StringNumber } from '../chord_diagram/chord_diagram';
+import Configuration, { defaultConfiguration } from './configuration';
+import Dimensions from './pdf_formatter/dimensions';
 import Formatter from './formatter';
+import Item from '../chord_sheet/item';
+import JsPDFRenderer from '../chord_diagram/js_pdf_renderer';
+import Line from '../chord_sheet/line';
+import Paragraph from '../chord_sheet/paragraph';
+import Song from '../chord_sheet/song';
+import defaultPDFConfiguration from './pdf_formatter/default_configuration';
+import { ChordLyricsPair, SoftLineBreak, Tag } from '../index';
+import { Fret } from '../constants';
+import { getCapos } from '../helpers';
+
 import {
   isChordLyricsPair,
   isColumnBreak,
@@ -9,17 +26,6 @@ import {
   lineHasContents,
   renderChord,
 } from '../template_helpers';
-import Song from '../chord_sheet/song';
-import Paragraph from '../chord_sheet/paragraph';
-import Line from '../chord_sheet/line';
-import {
-  ChordLyricsPair,
-  SoftLineBreak,
-  Tag,
-} from '../index';
-import Item from '../chord_sheet/item';
-import jsPDF from 'jspdf';
-import defaultPDFConfiguration from './pdf_formatter/default_configuration';
 
 import {
   Alignment,
@@ -32,11 +38,11 @@ import {
   LayoutItem,
   LayoutSection,
   LineLayout,
+  Margins,
   MeasuredItem,
   PDFConfiguration,
   PdfConstructor,
   PdfDoc,
-  Margins,
 } from './pdf_formatter/types';
 
 import {
@@ -46,10 +52,6 @@ import {
   NimbusSansLRegNormal,
 } from './pdf_formatter/fonts/NimbusSansLFonts.base64';
 
-import { Performance } from 'perf_hooks';
-import { Blob } from 'buffer';
-import Configuration, { defaultConfiguration } from './configuration';
-import { getCapos } from '../helpers';
 declare const performance: Performance;
 
 class PdfFormatter extends Formatter {
@@ -71,8 +73,6 @@ class PdfFormatter extends Formatter {
 
   currentPage = 1;
 
-  columnWidth = 0;
-
   configuration: Configuration = defaultConfiguration;
 
   pdfConfiguration: PDFConfiguration = defaultPDFConfiguration;
@@ -81,23 +81,33 @@ class PdfFormatter extends Formatter {
 
   margins: Margins = defaultPDFConfiguration.layout.global.margins;
 
+  _dimensions: Dimensions | null = null;
+
+  get dimensions(): Dimensions {
+    if (!this._dimensions) {
+      this._dimensions = this.buildDimensions();
+    }
+    return this._dimensions;
+  }
+
   // Main function to format and save the song as a PDF
   format(
     song: Song,
     configuration: Configuration,
     pdfConfiguration: PDFConfiguration = defaultPDFConfiguration,
-    docConstructor: PdfConstructor = jsPDF,
+    docConstructor: PdfConstructor = JsPDF,
   ): void {
     this.startTime = performance.now();
     this.song = song;
     this.configuration = configuration;
     this.pdfConfiguration = pdfConfiguration;
     this.doc = this.setupDoc(docConstructor);
-    this.margins = this.pdfConfiguration.layout.global.margins;
-    this.y = this.margins.top + this.pdfConfiguration.layout.header.height;
-    this.x = this.margins.left;
+
+    this.y = this.dimensions.minY;
+    this.x = this.dimensions.minX;
     this.currentColumn = 1;
     this.formatParagraphs();
+    this.renderChordDiagrams();
     this.recordFormattingTime();
 
     // Must render the footer and header after all formatting
@@ -108,6 +118,76 @@ class PdfFormatter extends Formatter {
       this.renderLayout(this.pdfConfiguration.layout.header, 'header');
       this.renderLayout(this.pdfConfiguration.layout.footer, 'footer');
     }
+  }
+
+  get chordDefinitions(): ChordDefinition[] {
+    const chordDefinitions = this.song.chordDefinitions.withDefaults();
+
+    return this.song
+      .getChords()
+      .map((chord) => chordDefinitions.get(chord))
+      .filter((chordDefinition) => chordDefinition !== null);
+  }
+
+  newPage() {
+    this.doc.addPage();
+    this.totalPages += 1;
+    this.y = this.dimensions.minY;
+  }
+
+  renderChordDiagrams() {
+    this.x = this.dimensions.minX;
+    const chordDiagramWidth = 60;
+    const chordDiagramHeight = JsPDFRenderer.calculateHeight(chordDiagramWidth);
+    const xMargin = 10;
+    const yMargin = 10;
+
+    this.chordDefinitions.forEach((chordDefinition: ChordDefinition) => {
+      if ((this.x + chordDiagramWidth) > this.dimensions.maxX) {
+        this.y += chordDiagramHeight + yMargin;
+        this.x = this.dimensions.minX;
+      }
+
+      if (this.y + chordDiagramHeight > this.dimensions.maxY) {
+        this.newPage();
+      }
+
+      const chordDiagram = this.buildChordDiagram(chordDefinition);
+      const renderer = new JsPDFRenderer(this.doc, { x: this.x, y: this.y, width: chordDiagramWidth });
+      chordDiagram.render(renderer);
+      this.x += renderer.width + xMargin;
+    });
+  }
+
+  buildChordDiagram(chordDefinition: ChordDefinition): ChordDiagram {
+    const openStrings = chordDefinition.frets
+      .map((fret: Fret, index: number) => (isOpenFret(fret) ? (index + 1) as StringNumber : null))
+      .filter((stringNumber: StringNumber | null) => stringNumber !== null);
+
+    const unusedStrings = chordDefinition.frets
+      .map((fret: Fret, index: number) => (isNonSoundingString(fret) ? (index + 1) as StringNumber : null))
+      .filter((stringNumber: StringNumber | null) => stringNumber !== null);
+
+    const markers = chordDefinition.frets
+      .map((fret: Fret, index: number) => {
+        if (isNonSoundingString(fret) || isOpenFret(fret)) {
+          return null;
+        }
+
+        return {
+          string: index + 1 as StringNumber,
+          fret: fret as number,
+          finger: chordDefinition.fingers[index],
+        } as StringMarker;
+      })
+      .filter((marker: StringMarker | null) => marker !== null);
+
+    return new ChordDiagram({
+      chord: chordDefinition.name,
+      openStrings,
+      unusedStrings,
+      markers,
+    });
   }
 
   // Save the formatted document as a PDF file
@@ -137,6 +217,12 @@ class PdfFormatter extends Formatter {
     doc.setLineWidth(0);
     doc.setDrawColor(0, 0, 0, 0);
 
+    PdfFormatter.addFonts(doc);
+
+    return doc;
+  }
+
+  private static addFonts(doc: PdfDoc) {
     doc.addFileToVFS('NimbusSansL-Reg.ttf', NimbusSansLRegNormal);
     doc.addFont('NimbusSansL-Reg.ttf', 'NimbusSansL-Reg', 'normal');
 
@@ -148,15 +234,12 @@ class PdfFormatter extends Formatter {
 
     doc.addFileToVFS('NimbusSanL-BolIta-bolditalic.ttf', NimbusSansLBolItaBoldItalic);
     doc.addFont('NimbusSanL-BolIta-bolditalic.ttf', 'NimbusSansL-BolIta', 'bolditalic');
+  }
 
-    // Calculate column width using new config structure
+  buildDimensions() {
+    const { width, height } = this.doc.internal.pageSize;
     const { columnCount, columnSpacing } = this.pdfConfiguration.layout.sections.global;
-    const pageWidth = doc.internal.pageSize.getWidth();
-
-    this.columnWidth = (pageWidth - this.margins.left - this.margins.right -
-      (columnCount - 1) * columnSpacing) / columnCount;
-
-    return doc;
+    return new Dimensions(width, height, this.pdfConfiguration.layout, { columnCount, columnSpacing });
   }
 
   // Sets the font style based on the configuration
@@ -958,7 +1041,7 @@ class PdfFormatter extends Formatter {
       this.y += lineHeight;
 
       // Reset x to the left margin for the next line
-      this.carriageReturn();
+      this.x = this.columnStartX();
     });
   }
 
@@ -1258,7 +1341,7 @@ class PdfFormatter extends Formatter {
       this.currentColumn = 1;
     }
 
-    this.carriageReturn();
+    this.x = this.columnStartX();
     this.y = this.margins.top + this.pdfConfiguration.layout.header.height;
   }
 
@@ -1272,20 +1355,16 @@ class PdfFormatter extends Formatter {
 
   // Helper methods for layout calculations
   private columnAvailableWidth(): number {
-    return this.columnWidth - (this.x - this.columnStartX());
+    return this.dimensions.columnWidth - (this.x - this.columnStartX());
   }
 
   private columnStartX(): number {
     const { columnSpacing } = this.pdfConfiguration.layout.sections.global;
-    return this.margins.left + (this.currentColumn - 1) * (this.columnWidth + columnSpacing);
+    return this.margins.left + (this.currentColumn - 1) * (this.dimensions.columnWidth + columnSpacing);
   }
 
   private getSpaceWidth(): number {
     return this.getTextDimensions(' ').w;
-  }
-
-  private carriageReturn() {
-    this.x = this.columnStartX();
   }
 
   // Render text at a given position

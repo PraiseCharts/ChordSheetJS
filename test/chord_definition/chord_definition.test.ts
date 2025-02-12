@@ -23,11 +23,11 @@ describe('ChordDefinition', () => {
 
   describe('::parse', () => {
     it('parses a chord definition', () => {
-      const chordDefinition = ChordDefinition.parse(' D7 base-fret 3 frets x 3 2 3 1 x ');
+      const chordDefinition = ChordDefinition.parse(' D7 base-fret 3 frets x 3 2 0 1 x ');
 
       expect(chordDefinition.name).toEqual('D7');
       expect(chordDefinition.baseFret).toEqual(3);
-      expect(chordDefinition.frets).toEqual(['x', 3, 2, 3, 1, 'x']);
+      expect(chordDefinition.frets).toEqual(['x', 3, 2, 0, 1, 'x']);
       expect(chordDefinition.fingers).toEqual([]);
     });
 

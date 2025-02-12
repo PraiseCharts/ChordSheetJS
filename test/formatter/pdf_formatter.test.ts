@@ -70,5 +70,18 @@ describe('PdfFormatter', () => {
     expect(doc).toHaveText('C', 45, 330);
     expect(doc).toHaveText('Solo line 2', 45, 341);
     expect(doc).toHaveText('Tab 1', 45, 365);
+    expect(doc).toHaveText('ABC 1', 45, 397);
+    expect(doc).toHaveText('LY 1', 45, 429);
+    expect(doc).toHaveText('Bridge 1', 45, 461);
+    expect(doc).toHaveText('Bridge line', 45, 475);
+    expect(doc).toHaveText('Grid 1', 45, 499);
+
+    expect(doc).toHaveText('Am', 67, 539);
+    expect(doc).toHaveText('C/G', 135, 539);
+    expect(doc).toHaveText('F', 212, 539);
+    expect(doc).toHaveText('C', 281, 539);
+    expect(doc).toHaveText('G', 351, 539);
+    expect(doc).toHaveText('C/E', 416, 539);
+    expect(doc).toHaveText('Dm', 487, 539);
   });
 });

@@ -11,6 +11,14 @@ type ColorRGB = [number, number, number];
 type ColorRGBA = [number, number, number, number];
 type RenderColor = ColorShade | ColorString | ColorRGB | ColorRGBA;
 
+interface RenderedCircle {
+  type: 'circle',
+  x: number,
+  y: number,
+  r: number,
+  style?: string | null,
+}
+
 interface RenderedImage {
   type: 'image';
   imageData: string | HTMLImageElement | HTMLCanvasElement | Uint8Array | RGBAData;
@@ -35,6 +43,15 @@ export interface RenderedLine {
   color: RenderColor;
 }
 
+export interface RenderedRect {
+  type: 'rect',
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  style?: string | null,
+}
+
 export interface RenderedText {
   type: 'text';
   text: string;
@@ -49,7 +66,7 @@ export interface RenderedText {
   color: RenderColor;
 }
 
-export type RenderedItem = RenderedLine | RenderedImage | RenderedText;
+export type RenderedItem = RenderedCircle | RenderedLine | RenderedImage | RenderedRect | RenderedText;
 
 class StubbedPdfDoc {
   drawColor: RenderColor = '0 G';
@@ -198,6 +215,30 @@ class StubbedPdfDoc {
     return this;
   }
 
+  getDrawColor() {
+    return this.drawColor;
+  }
+
+  getFontSize() {
+    return this.fontSize;
+  }
+
+  getLineWidth() {
+    return this.lineWidth;
+  }
+
+  circle(x: number, y: number, r: number, style?: string | null): StubbedPdfDoc {
+    this.renderedItems.push({
+      type: 'circle',
+      x: Math.round(x),
+      y: Math.round(y),
+      r,
+      style,
+    });
+
+    return this;
+  }
+
   getTextDimensions(text: string, options?: TextOptionsLight): { w: number; h: number } {
     return this.jsPDF.getTextDimensions(text, options);
   }
@@ -212,6 +253,19 @@ class StubbedPdfDoc {
       style,
       lineWidth: this.lineWidth,
       color: this.drawColor,
+    });
+
+    return this;
+  }
+
+  rect(x: number, y: number, width: number, height: number, style?: string | null): StubbedPdfDoc {
+    this.renderedItems.push({
+      type: 'rect',
+      x: Math.round(x),
+      y: Math.round(y),
+      width: Math.round(width),
+      height: Math.round(height),
+      style,
     });
 
     return this;
